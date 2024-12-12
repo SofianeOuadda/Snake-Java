@@ -1,18 +1,10 @@
 package org.snakeinc.snake;
 
-import java.awt.Color;
-import java.awt.Dimension;
-import java.awt.Font;
-import java.awt.FontMetrics;
-import java.awt.Graphics;
-import java.awt.event.ActionEvent;
-import java.awt.event.ActionListener;
-import java.awt.event.KeyEvent;
-import java.awt.event.KeyListener;
-import javax.swing.JPanel;
-import javax.swing.Timer;
-import org.snakeinc.snake.model.Apple;
-import org.snakeinc.snake.model.Snake;
+import org.snakeinc.snake.model.*;
+import java.awt.*;
+import java.awt.event.*;
+import javax.swing.*;
+import java.util.Random;
 
 public class GamePanel extends JPanel implements ActionListener, KeyListener {
 
@@ -21,12 +13,15 @@ public class GamePanel extends JPanel implements ActionListener, KeyListener {
     public static final int N_TILES_Y = 25;
     public static final int GAME_WIDTH = TILE_SIZE * N_TILES_X;
     public static final int GAME_HEIGHT = TILE_SIZE * N_TILES_Y;
+    public static final int BORDER_THICKNESS = TILE_SIZE;
+    public static final int SCORE_PLACE = 2 * TILE_SIZE;
     private Timer timer;
     private Snake snake;
-    private Apple apple;
+    private EatableItem fruit;
     private boolean running = false;
-    private char direction = 'R';
-
+    private boolean gameOver = false;
+    private Direction direction = Direction.RIGHT;
+    private int score = 0;
     public GamePanel() {
         this.setPreferredSize(new Dimension(GAME_WIDTH, GAME_HEIGHT));
         this.setBackground(Color.BLACK);
@@ -37,42 +32,81 @@ public class GamePanel extends JPanel implements ActionListener, KeyListener {
     }
 
     private void startGame() {
-        snake = new Snake();
-        apple = new Apple();
+        snake = Snake.createRandomSnake();
+        fruit = createRandomFruit();
         timer = new Timer(100, this);
         timer.start();
         running = true;
+        gameOver = false;
+        score = 0;
+        direction = Direction.RIGHT;
+    }
+
+    private DifficultyStrategy getRandomStrategy() {
+        Random r = new Random();
+        int choice = r.nextInt(3);
+        return switch (choice) {
+            case 0 -> new RandomDifficultyStrategy();
+            case 1 -> new EasyDifficultyStrategy();
+            case 2 -> new DifficultDifficultyStrategy();
+            default -> new RandomDifficultyStrategy(); // Par défaut
+        };
+    }
+
+    private EatableItem createRandomFruit() {
+        Random random = new Random();
+        EatableItem newFruit = random.nextBoolean() ? new Apple() : new Broccoli();
+        newFruit.setStrategy(getRandomStrategy());
+        newFruit.updateLocation(snake);
+        return newFruit;
+    }
+
+    private void checkCollision() {
+        if (snake.checkSelfCollision() || snake.checkWallCollision()) {
+            running = false;
+            gameOver = true;
+            timer.stop();
+        }
+        if (snake.getHead().equals(fruit.getPosition())) {
+            snake.eat(fruit);
+            fruit = createRandomFruit();
+            score++;
+        }
     }
 
     @Override
     public void paintComponent(Graphics g) {
         super.paintComponent(g);
+        drawBorders(g);
+        drawScore(g);
         if (running) {
-            apple.draw(g);
+            fruit.draw(g);
             snake.draw(g);
-        } else {
+        } else if (gameOver) {
             gameOver(g);
         }
+    }
+
+    private void drawBorders(Graphics g) {
+        g.setColor(Color.GRAY);
+        g.fillRect(0, SCORE_PLACE, GAME_WIDTH, BORDER_THICKNESS);
+    }
+
+    private void drawScore(Graphics g) {
+        g.setColor(Color.WHITE);
+        g.setFont(new Font("Arial", Font.BOLD, 20));
+        FontMetrics metrics = getFontMetrics(g.getFont());
+        String scoreText = "Score: " + score;
+        g.drawString(scoreText, (GAME_WIDTH + 2 * BORDER_THICKNESS - metrics.stringWidth(scoreText)) / 2, 20);
     }
 
     private void gameOver(Graphics g) {
         g.setColor(Color.RED);
         g.setFont(new Font("Arial", Font.BOLD, 20));
         FontMetrics metrics = getFontMetrics(g.getFont());
-        g.drawString("Game Over", (GAME_WIDTH - metrics.stringWidth("Game Over")) / 2, GAME_HEIGHT / 2);
-    }
-
-    private void checkCollision() {
-        // Vérifie si le serpent se mord ou sort de l'écran
-        if (snake.checkSelfCollision() || snake.checkWallCollision()) {
-            running = false;
-            timer.stop();
-        }
-        // Vérifie si le serpent mange la pomme
-        if (snake.getHead().equals(apple.getPosition())) {
-            snake.eat(apple);
-            apple.updateLocation();
-        }
+        g.drawString("Game Over", (GAME_WIDTH - metrics.stringWidth("Game Over")) / 2 + BORDER_THICKNESS, GAME_HEIGHT / 2 + 30);
+        g.drawString("Press any key to replay", (GAME_WIDTH - metrics.stringWidth("Press any key to replay")) / 2 + BORDER_THICKNESS, GAME_HEIGHT / 2 + 60);
+        g.drawString("Final Score: " + score, (GAME_WIDTH - metrics.stringWidth("Final Score: " + score)) / 2 + BORDER_THICKNESS, GAME_HEIGHT / 2 + 90);
     }
 
     @Override
@@ -86,35 +120,29 @@ public class GamePanel extends JPanel implements ActionListener, KeyListener {
 
     @Override
     public void keyPressed(KeyEvent e) {
-        switch (e.getKeyCode()) {
-            case KeyEvent.VK_LEFT:
-                if (direction != 'R') {
-                    direction = 'L';
+        if (gameOver) {
+            startGame();
+            repaint();
+        } else {
+            switch (e.getKeyCode()) {
+                case KeyEvent.VK_LEFT -> {
+                    if (direction != Direction.RIGHT) direction = Direction.LEFT;
                 }
-                break;
-            case KeyEvent.VK_RIGHT:
-                if (direction != 'L') {
-                    direction = 'R';
+                case KeyEvent.VK_RIGHT -> {
+                    if (direction != Direction.LEFT) direction = Direction.RIGHT;
                 }
-                break;
-            case KeyEvent.VK_UP:
-                if (direction != 'D') {
-                    direction = 'U';
+                case KeyEvent.VK_UP -> {
+                    if (direction != Direction.DOWN) direction = Direction.UP;
                 }
-                break;
-            case KeyEvent.VK_DOWN:
-                if (direction != 'U') {
-                    direction = 'D';
+                case KeyEvent.VK_DOWN -> {
+                    if (direction != Direction.UP) direction = Direction.DOWN;
                 }
-                break;
+            }
         }
     }
 
     @Override
-    public void keyReleased(KeyEvent e) {
-    }
-
+    public void keyReleased(KeyEvent e) {}
     @Override
-    public void keyTyped(KeyEvent e) {
-    }
+    public void keyTyped(KeyEvent e) {}
 }

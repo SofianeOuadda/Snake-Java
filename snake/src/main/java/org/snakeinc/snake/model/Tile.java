@@ -1,18 +1,14 @@
 package org.snakeinc.snake.model;
 
-import java.awt.Graphics;
-import java.util.Objects;
 import lombok.Getter;
 import org.snakeinc.snake.GamePanel;
-
+import java.awt.Graphics;
+import java.util.Objects;
 
 @Getter
 public class Tile {
 
-    @Getter
     private int x;
-
-    @Getter
     private int y;
 
     private int upperPixelX;
@@ -46,17 +42,19 @@ public class Tile {
     }
 
     public boolean isInsideGame() {
-        return (((x > 0) && (x < GamePanel.N_TILES_X)) && ((y > 0) && (y < GamePanel.N_TILES_Y)));
+        int leftLimit = 0;
+        int rightLimit = GamePanel.GAME_WIDTH / GamePanel.TILE_SIZE;
+        int topLimit = (GamePanel.BORDER_THICKNESS + GamePanel.SCORE_PLACE)/GamePanel.TILE_SIZE;
+        int bottomLimit = GamePanel.GAME_HEIGHT / GamePanel.TILE_SIZE;
+
+        return (x < leftLimit || x >= rightLimit) || (y < topLimit || y >= bottomLimit);
     }
 
     @Override
     public boolean equals(Object o) {
-        if (this == o) {
-            return true;
-        }
-        if (o == null || getClass() != o.getClass()) {
-            return false;
-        }
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+
         Tile tile = (Tile) o;
         return x == tile.x && y == tile.y;
     }

@@ -3,15 +3,16 @@ package org.snakeinc.snake.model;
 import java.awt.Color;
 import java.awt.Graphics;
 
-public class Apple extends EatableItem {
+public class Broccoli extends EatableItem {
 
-    public Apple() {
+    // Idem que Apple
+    public Broccoli() {
     }
 
     @Override
     public void draw(Graphics g) {
         if (position != null) {
-            g.setColor(Color.RED);
+            g.setColor(Color.GREEN);
             position.drawOval(g);
         }
     }
