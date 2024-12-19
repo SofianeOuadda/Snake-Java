@@ -4,7 +4,11 @@ import org.snakeinc.snake.model.*;
 import java.awt.*;
 import java.awt.event.*;
 import javax.swing.*;
+import java.nio.charset.StandardCharsets;
 import java.util.Random;
+import java.io.OutputStream;
+import java.net.HttpURLConnection;
+import java.net.URL;
 
 public class GamePanel extends JPanel implements ActionListener, KeyListener {
 
@@ -22,6 +26,10 @@ public class GamePanel extends JPanel implements ActionListener, KeyListener {
     private boolean gameOver = false;
     private Direction direction = Direction.RIGHT;
     private int score = 0;
+
+
+    private String currentSnakeName;
+
     public GamePanel() {
         this.setPreferredSize(new Dimension(GAME_WIDTH, GAME_HEIGHT));
         this.setBackground(Color.BLACK);
@@ -33,6 +41,14 @@ public class GamePanel extends JPanel implements ActionListener, KeyListener {
 
     private void startGame() {
         snake = Snake.createRandomSnake();
+
+        switch (snake) {
+            case Anaconda anaconda -> currentSnakeName = "anaconda";
+            case Python python -> currentSnakeName = "python";
+            case BoaConstrictor boaConstrictor -> currentSnakeName = "boaConstrictor";
+            default -> currentSnakeName = "python";
+        }
+
         fruit = createRandomFruit();
         timer = new Timer(100, this);
         timer.start();
@@ -66,6 +82,8 @@ public class GamePanel extends JPanel implements ActionListener, KeyListener {
             running = false;
             gameOver = true;
             timer.stop();
+
+            sendScoreToServer();
         }
         if (snake.getHead().equals(fruit.getPosition())) {
             snake.eat(fruit);
@@ -145,4 +163,29 @@ public class GamePanel extends JPanel implements ActionListener, KeyListener {
     public void keyReleased(KeyEvent e) {}
     @Override
     public void keyTyped(KeyEvent e) {}
+
+
+    private void sendScoreToServer() {
+        try {
+            URL url = new URL("http://localhost:8080/api/v1/scores");
+            HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+            conn.setRequestMethod("POST");
+            conn.setDoOutput(true);
+            conn.setRequestProperty("Content-Type", "application/json");
+
+            String json = "{ \"snake\": \"" + currentSnakeName + "\", \"score\": " + score + " }";
+
+            try (OutputStream os = conn.getOutputStream()) {
+                byte[] input = json.getBytes(StandardCharsets.UTF_8);
+                os.write(input, 0, input.length);
+            }
+
+            int status = conn.getResponseCode();
+            System.out.println("POST /api/v1/scores returned status: " + status);
+
+            conn.disconnect();
+        } catch (Exception ex) {
+            ex.printStackTrace();
+        }
+    }
 }

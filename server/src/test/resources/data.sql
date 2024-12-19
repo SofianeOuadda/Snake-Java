@@ -1,0 +1,1 @@
+INSERT INTO scores (snake, score, created_at) VALUES ('python', 125, '2024-12-12T00:00:00');
